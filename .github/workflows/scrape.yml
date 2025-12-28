@@ -1,0 +1,34 @@
+name: Refresh Realtor Data
+
+on:
+  schedule:
+    - cron: '0 15 * * *' # Runs at 15:00 UTC (approx 8am Kamloops time)
+  workflow_dispatch: # Allows you to run it manually via the 'Actions' tab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add data.json
+          git commit -m "Update listings" || exit 0
+          git push
