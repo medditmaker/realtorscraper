@@ -1,11 +1,22 @@
 import requests
 import json
 from datetime import datetime
+import time
 
 def scrape():
-    url = "https://api37.realtor.ca/Listing.svc/PropertySearch_Post"
+    # 1. Setup a Session (this saves cookies like a real browser)
+    session = requests.Session()
     
-    # This payload is more specific to what Realtor.ca expects
+    # 2. Perfect Headers (Mimicking Chrome on Windows)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://www.realtor.ca",
+        "Referer": "https://www.realtor.ca/",
+        "ContentType": "application/x-www-form-urlencoded; charset=UTF-8",
+    }
+
     payload = {
         "ZoomLevel": "11",
         "LatitudeMin": "50.605",
@@ -22,29 +33,18 @@ def scrape():
         "ApplicationId": "1"
     }
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://www.realtor.ca/",
-        "Accept": "*/*",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-    }
-
-    # Use a session to keep cookies
-    session = requests.Session()
-    
     try:
-        # First, visit the homepage to get a session cookie
-        session.get("https://www.realtor.ca", headers=headers, timeout=10)
+        # Step A: Visit the home page first to get cookies
+        session.get("https://www.realtor.ca", headers=headers, timeout=15)
+        time.sleep(2) # Wait a second to seem human
         
-        # Now make the actual POST request
-        response = session.post(url, data=payload, headers=headers, timeout=10)
-        
-        print(f"Status Code: {response.status_code}")
+        # Step B: Make the search request
+        url = "https://api37.realtor.ca/Listing.svc/PropertySearch_Post"
+        response = session.post(url, data=payload, headers=headers, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
             listings = data.get("Results", [])
-            print(f"Found {len(listings)} listings.")
             
             cleaned_data = []
             for l in listings:
@@ -59,14 +59,14 @@ def scrape():
             
             with open("data.json", "w") as f:
                 json.dump({"last_updated": str(datetime.now()), "listings": cleaned_data}, f, indent=2)
+            print(f"Success! Found {len(cleaned_data)} houses.")
         else:
-            print(f"Error: Received status {response.status_code}")
-            # If it fails, save the error so we can see it in data.json
             with open("data.json", "w") as f:
                 json.dump({"error": f"Status {response.status_code}", "last_updated": str(datetime.now())}, f)
+            print(f"Failed with status: {response.status_code}")
 
     except Exception as e:
-        print(f"Script crashed: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     scrape()
